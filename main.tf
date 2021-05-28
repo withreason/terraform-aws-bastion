@@ -11,7 +11,7 @@ data "template_file" "user_data" {
 }
 
 resource "aws_kms_key" "key" {
-  tags = merge(var.tags)
+  tags = var.tags
 }
 
 resource "aws_kms_alias" "alias" {
@@ -31,7 +31,6 @@ resource "aws_s3_bucket" "bucket" {
       }
     }
   }
-
 
   force_destroy = var.bucket_force_destroy
 
@@ -65,7 +64,7 @@ resource "aws_s3_bucket" "bucket" {
     }
   }
 
-  tags = merge(var.tags)
+  tags = var.tags
 }
 
 resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
@@ -81,7 +80,7 @@ resource "aws_security_group" "bastion_host_security_group" {
   name        = "${local.name_prefix}-host"
   vpc_id      = var.vpc_id
 
-  tags = merge(var.tags)
+  tags = var.tags
 }
 
 resource "aws_security_group_rule" "ingress_bastion" {
@@ -113,7 +112,7 @@ resource "aws_security_group" "private_instances_security_group" {
   name        = "${local.name_prefix}-priv-instances"
   vpc_id      = var.vpc_id
 
-  tags = merge(var.tags)
+  tags = var.tags
 }
 
 resource "aws_security_group_rule" "ingress_instances" {
@@ -167,7 +166,8 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
       "s3:ListBucket"
     ]
     resources = [
-    aws_s3_bucket.bucket.arn]
+      aws_s3_bucket.bucket.arn
+    ]
 
     condition {
       test     = "ForAnyValue:StringEquals"
@@ -217,7 +217,7 @@ resource "aws_lb" "bastion_lb" {
   subnets = var.elb_subnets
 
   load_balancer_type = "network"
-  tags               = merge(var.tags)
+  tags               = var.tags
 }
 
 resource "aws_lb_target_group" "bastion_lb_target_group" {
@@ -232,7 +232,7 @@ resource "aws_lb_target_group" "bastion_lb_target_group" {
     protocol = "TCP"
   }
 
-  tags = merge(var.tags)
+  tags = var.tags
 }
 
 resource "aws_lb_listener" "bastion_lb_listener_22" {
@@ -272,12 +272,12 @@ resource "aws_launch_template" "bastion_launch_template" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(map("Name", var.bastion_launch_template_name), merge(var.tags))
+    tags          = merge({"Name": var.bastion_launch_template_name}, var.tags)
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags          = merge(map("Name", var.bastion_launch_template_name), merge(var.tags))
+    tags          = merge({"Name": var.bastion_launch_template_name}, var.tags)
   }
 
   lifecycle {
@@ -309,10 +309,9 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
     "OldestLaunchConfiguration",
   ]
 
-  tags = concat(
-    list(map("key", "Name", "value", "ASG-${local.name_prefix}", "propagate_at_launch", true)),
-    local.tags_asg_format
-  )
+  tags = concat([{"key": "Name", 
+                "value": "ASG-${local.name_prefix}", 
+                "propagate_at_launch": true}], local.tags_asg_format)
 
   lifecycle {
     create_before_destroy = true
